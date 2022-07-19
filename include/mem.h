@@ -71,15 +71,28 @@ void mem_init(){
 	HEAP_START->size = align(HEAP_CAPACITY - HEADER_SIZE);
 }
 
+/*
+ * Also doing deferred coalescing,
+ * if the size can't fit in current block (header)
+ * and the next block is free, merge them and try again
+ */
 pheader_t find_block(const size_t size){
 	pheader_t header = HEAP_START;
+	pheader_t next_header = NULL;
 	while(header < HEAP_END){
-		int offset = header->size;
-		if(header->size >= size && is_free(header))
-			return header;
-		if(!is_free(header))
-			offset--;
-		header = (pheader_t)((char*)header + offset);
+		if(is_free(header)){
+			if(header->size >= size)
+				return header;
+			next_header = (pheader_t)((char*)header + header->size);
+			if(next_header < HEAP_END && is_free(next_header)){
+				header->size += next_header->size;
+				continue;
+			}
+		}
+		else {
+			next_header = (pheader_t)((char*)header + (header->size & ~1L));
+		}
+		header = next_header;
 	}
 	return NULL;
 }
@@ -98,7 +111,7 @@ void* mem_alloc(size_t size){
 		next->size = align(header->size - size);
 	}
 	header->size = size | 1;
-	return header + HEADER_SIZE;
+	return (char*)header + HEADER_SIZE;
 }
 
 bool is_free(pheader_t block_header){
@@ -123,4 +136,11 @@ void print_blocks(){
 		printf("Header at: %p, with block size %lu\n", (void*)header, size);
 		header = (pheader_t)((char*)header + size);
 	}
+}
+
+void mem_free(void* ptr){
+	if(ptr < (void*)HEAP_START || ptr > (void*)HEAP_END)
+		handle_error("mem_free requires a valid pointer returned by mem_alloc\n");
+	pheader_t header = (pheader_t)((char*)ptr - HEADER_SIZE);
+	header->size &= ~1L;
 }
