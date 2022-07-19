@@ -4,7 +4,7 @@
 
 #define ALIGNMENT 2
 #define align(x) ((x + (ALIGNMENT - 1)) & ~(ALIGNMENT - 1))
-#define DEBUG 1
+#define DEBUG 0
 #define debug_print(fmt, ...) do { if(DEBUG) fprintf(stdout, fmt, __VA_ARGS__); } while(0)
 #define HEADER_SIZE (align(sizeof(header_t)))
 #define HEAP_CAPACITY 64000
@@ -102,7 +102,7 @@ void* mem_alloc(size_t size){
 		mem_init();
 	if(size < 2) 
 		handle_error("Minimum allocation size");
-	size = align(size);
+	size = align(size + HEADER_SIZE);
 	pheader_t header = find_block(size);
 	if(!header)
 		handle_error("Could not find a fitting block");
@@ -133,7 +133,7 @@ void print_blocks(){
 		}
 		else 
 			printf("Allocated ");
-		printf("Header at: %p, with block size %lu\n", (void*)header, size);
+		printf("header at: %p, with block size %lu\n", (void*)header, size);
 		header = (pheader_t)((char*)header + size);
 	}
 }
